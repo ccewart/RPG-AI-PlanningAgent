@@ -1,31 +1,32 @@
 #!/usr/bin/python3
-# ^^ note the python directive on the first line
-# COMP 9414 agent initiation file 
+# Charles Ewart
+# Agent initiation file 
 # requires the host is running before the agent
 # designed for python 3.6
 # typical initiation would be (file in working directory, port = 31415)
 #        python3 agent.py -p 31415
+# created by Leo Hoare
+# with slight modifications by Alan Blair
 
 from agent_classes import Coords, Compass, Character
+from collections import namedtuple
 from queue import Queue
 from greedyBFS import *
 import sys
 import socket
 
-
+# Initialise character at position (80,80)
+Char = Character(80, 80)
 
 # declaring visible grid to agent
 view = [['' for _ in range(5)] for _ in range(5)]
 
 # declaring a known map of the world to agent
 worldMap = [['?' for _ in range(160)] for _ in range(160)]
+Coord = namedTuple('Coord', 'coords 
+heuristicMap = 
 
 # declaring navigation tools
-currentX = 80
-currentY = 80
-cardinalPoints = ['N', 'E', 'S', 'W']
-orientation = 0
-stepsTaken = 0
 waterTiles = []
 exploredWaterTiles = []
 thingCoords = {
@@ -42,91 +43,57 @@ onLand = True
 # declaring action tools
 actionQueue = Queue()
 
-# declaring inventory
-hasTreasure = False
-hasAxe = False
-hasKey = False
-hasRaft = False
-nbOfSteppingStones = 0
-
-def initialiseWorldMap(view):
-    if stepsTaken==0:
-        for i in range(5):
-            for j in range(5):
-                if(i==2 and j==2):
-                    worldMap[80][80] = 'S'
-                else:
-                    worldMap[78+i][78+j] = view[i][j]
+def rotate_view(view):
+    if Char.get_orientation == 'N':
+        return view
+    elif Char.get_orientation == 'E':
+        view = [list(reversed(x)) for x in zip(*view)]
+    elif Char.get_orientation == 'S':
+        for _ in range(2):
+            view = [list(reversed(x)) for x in zip(*view)]
+    elif Char.get_orientation == 'W':
+        for _ in range(3):
+            view = [list(reversed(x)) for x in zip(*view)]
+    return view
 
 def updateWorldMap(view):
-    if cardinalPoints[orientation] == 'N':
-        for i in range(5):
-            worldMap[currentY-2][currentX-2+i] = view[0][i]
-    elif cardinalPoints[orientation] == 'E':
-        for i in range(5):
-            worldMap[currentY-2+i][currentX+2] = view[0][i]
-    elif cardinalPoints[orientation] == 'S':
-        for i in range(5):
-            worldMap[currentY+2][currentX+2-i] = view[0][i]
-    elif cardinalPoints[orientation] == 'W':
-        for i in range(5):
-            worldMap[currentY+2-i][currentX - 2] = view[0][i]
+    view = rotate_view(view)
+    for i in range(5):
+        for j in range(5):
+            worldMap[Char.Y_pos + 2 - i][Char.X_pos - 2 + j] = view[i][j]
 
 def printWorldMap():
-    for i in range(72, 88):
-        for q in range(72, 100):
-            print(worldMap[i][q][0], end = '')
+    for row in range(100, 75, -1):
+        for column in range(72, 86):
+            print(worldMap[row][column][0], end = '')
         print()
-
-def moveForward():
-    global currentY
-    global currentX
-    global stepsTaken
-    if cardinalPoints[orientation] == 'N':
-        currentY = currentY-1
-    elif cardinalPoints[orientation] == 'E':
-        currentX = currentX+1
-    elif cardinalPoints[orientation] == 'S':
-        currentY = currentY+1
-    elif cardinalPoints[orientation] == 'W':
-        currentX = currentX-1
-    stepsTaken += 1
-
-def rotate(direction):
-    global orientation
-    global stepsTaken
-    if direction == 'l':
-        orientation = (orientation - 1) % 4
-    elif direction == 'r':
-        orientation = (orientation + 1) % 4
-    stepsTaken += 1
 
 def adjacentSquaresHeuristic():
     cardinals = [['N', 0],['E', 0], ['S', 0], ['W', 0]]
     for i in range(4):
         for j in range(-2, 3):
-            if i == 0 and worldMap[currentY-3][currentX+j] == '?':
+            if i == 0 and worldMap[Char.Y_pos-3][Char.X_pos+j] == '?':
                 cardinals[0][1] += 1
-            if i == 1 and worldMap[currentY+j][currentX+3] == '?':
+            if i == 1 and worldMap[Char.Y_pos+j][Char.X_pos+3] == '?':
                 cardinals[1][1] += 1
-            if i == 2 and worldMap[currentY+3][currentX+j] == '?':
+            if i == 2 and worldMap[Char.Y_pos+3][Char.X_pos+j] == '?':
                 cardinals[2][1] += 1
-            if i == 3 and worldMap[currentY+j][currentX-3] == '?':
+            if i == 3 and worldMap[Char.Y_pos+j][Char.X_pos-3] == '?':
                 cardinals[3][1] += 1   
     L = [1,2,3,2]
-    if cardinalPoints[orientation] == 'N':
+    if Char.get_orientation == 'N':
         for i in range(4):
             if view[L[i]][L[::-1][i]] in ['~', 'T', '*', '-', '.']:
                 cardinals[i][1] -= 5
-    if cardinalPoints[orientation] == 'E':
+    if Char.get_orientation == 'E':
         for i in range(4):
             if view[L[i]][L[::-1][i]] in ['~', 'T', '*', '-', '.']:
                 cardinals[(i+1)%4][1] -= 5
-    if cardinalPoints[orientation] == 'S':
+    if Char.get_orientation == 'S':
         for i in range(4):
             if view[L[i]][L[::-1][i]] in ['~', 'T', '*', '-', '.']:
                 cardinals[(i+2)%4][1] -= 5
-    if cardinalPoints[orientation] == 'W':
+    if Char.get_orientation == 'W':
         for i in range(4):
             if view[L[i]][L[::-1][i]] in ['~', 'T', '*', '-', '.']:
                 cardinals[(i+3)%4][1] -= 5
@@ -134,7 +101,7 @@ def adjacentSquaresHeuristic():
 
 def pathToActions(path):
     for e in path:
-        if e[0] == 2 and e[1] ==             2:
+        if e[0] == 2 and e[1] == 2:
             pass
         elif e[1] < 2:
             actionQueue.enqueue('l')
@@ -146,8 +113,8 @@ def pathToActions(path):
             actionQueue.enqueue('f')
 
 def pathToActions_worldMap(path):
-    localY, localX = currentY, currentX
-    localOrientation = cardinalPoints[orientation]
+    localY, localX = Char.Y_pos, Char.X_pos
+    localOrientation = Char.get_orientation
     for tile in path:
         if tile[0] == localX and tile[1] == localY:
             pass
@@ -216,18 +183,18 @@ def localToWorldCoords(item):
     itemLocations = []
     for i in range(5):
         for j in range(5):
-            if cardinalPoints[orientation] == 'N':
+            if Char.get_orientation == 'N':
                 if view[i][j] == item:
-                    itemLocations.append((currentY-2+i, currentX-2+j))
-            elif cardinalPoints[orientation] == 'E':
+                    itemLocations.append((Char.Y_pos-2+i, Char.X_pos-2+j))
+            elif Char.get_orientation == 'E':
                 if view[i][j] == item:
-                    itemLocations.append((currentY-2+j, currentX+2-i))
-            elif cardinalPoints[orientation] == 'S':
+                    itemLocations.append((Char.Y_pos-2+j, Char.X_pos+2-i))
+            elif Char.get_orientation == 'S':
                 if view[i][j] == item:
-                    itemLocations.append((currentY+2-i, currentX+2-j))
-            elif cardinalPoints[orientation] == 'W':
+                    itemLocations.append((Char.Y_pos+2-i, Char.X_pos+2-j))
+            elif Char.get_orientation == 'W':
                 if view[i][j] == item:
-                    itemLocations.append((currentY+2-j, currentX-2+i))
+                    itemLocations.append((Char.Y_pos+2-j, Char.X_pos-2+i))
     if itemLocations:
         return itemLocations
     else:
@@ -253,30 +220,27 @@ def checkForThings(view):
     return None
 
 def pickUpStuff(y, x):
-    global hasTreasure
-    global hasKey
-    global hasAxe
     if ((y, x)) in thingCoords['$']:
-        hasTreasure = True
+        Char.hasTreasure = True
         thingCoords['$'] = []
     if ((y, x)) in thingCoords['a']:
-        hasAxe = True
+        Char.hasAxe = True
         thingCoords['a'].remove((y, x))
     if ((y, x)) in thingCoords['k']:
-        hasKey = True
+        Char.hasKey = True
         thingCoords['k'].remove((y, x))
     if ((y, x)) in thingCoords['o']:
-        nbOfSteppingStones += 1
+        Char.nbOfSteppingStones += 1
         thingCoords['o'].remove((y, x))
 
 def which_action():
     act = actionQueue.dequeue()
     if act == 'f':
-        moveForward()
+        Char.move_forward()
     if act == 'l':
-        rotate('l')
+        Char.rotate('l')
     if act == 'r':
-        rotate('r')  
+        Char.rotate('r') 
     return act
 
 def nonAdjacentTileToExplore(a, y, x):
@@ -304,23 +268,23 @@ def AdjacentTileToExplore(a):
     for i in range(4):
         if a[i][1] == max(a[0][1], a[1][1], a[2][1], a[3][1]):
             maxHSquares.append(a[i][0])
-    if (cardinalPoints[orientation] in maxHSquares) and (view[1][2] not in ['~', '*', '.']):
-        moveForward()
+    if (Char.get_orientation in maxHSquares) and (view[1][2] not in ['~', '*', '.']):
+        Char.move_forward()
         return 'f'
     else:
-        if  (((cardinalPoints[orientation] == 'N') and ('E' in maxHSquares) and ('W' not in maxHSquares)) or
-            ((cardinalPoints[orientation] == 'E') and ('S' in maxHSquares) and ('N' not in maxHSquares)) or
-            ((cardinalPoints[orientation] == 'S') and ('W' in maxHSquares) and ('E' not in maxHSquares)) or
-            ((cardinalPoints[orientation] == 'W') and ('N' in maxHSquares) and ('S' not in maxHSquares))
+        if  (((Char.get_orientation == 'N') and ('E' in maxHSquares) and ('W' not in maxHSquares)) or
+            ((Char.get_orientation == 'E') and ('S' in maxHSquares) and ('N' not in maxHSquares)) or
+            ((Char.get_orientation == 'S') and ('W' in maxHSquares) and ('E' not in maxHSquares)) or
+            ((Char.get_orientation == 'W') and ('N' in maxHSquares) and ('S' not in maxHSquares))
             ):
-                rotate('r')
+                Char.rotate('r')
                 return 'r'
-        elif(((cardinalPoints[orientation] == 'N') and ('W' in maxHSquares) and ('E' not in maxHSquares)) or
-            ((cardinalPoints[orientation] == 'E') and ('N' in maxHSquares) and ('S' not in maxHSquares)) or
-            ((cardinalPoints[orientation] == 'S') and ('E' in maxHSquares) and ('W' not in maxHSquares)) or
-            ((cardinalPoints[orientation] == 'W') and ('S' in maxHSquares) and ('N' not in maxHSquares))
+        elif(((Char.get_orientation == 'N') and ('W' in maxHSquares) and ('E' not in maxHSquares)) or
+            ((Char.get_orientation == 'E') and ('N' in maxHSquares) and ('S' not in maxHSquares)) or
+            ((Char.get_orientation == 'S') and ('E' in maxHSquares) and ('W' not in maxHSquares)) or
+            ((Char.get_orientation == 'W') and ('S' in maxHSquares) and ('N' not in maxHSquares))
             ):
-                rotate('l')
+                Char.rotate('l')
                 return 'l'
     return None
 
@@ -328,7 +292,7 @@ def chopTree():
     for i in range(4):
         actionQueue.enqueue('c')
         actionQueue.enqueue('r')
-        rotate('r')
+        Char.rotate('r')
 
 def waterTilesToExplore(y, x):
     potentialPlaces = []
@@ -370,46 +334,44 @@ def nonAdjacentWaterTileToExplore(a, y, x):
 
 # function to take get action from AI or user
 def get_action(view):
-    global hasTreasure
-    global hasRaft
-    global stepsTaken
     global onLand
     global waterTiles
     global exploredWaterTiles
-    if stepsTaken > 500:
+    if Char.steps_taken > 50:
         sys.exit(1)
-    if worldMap[currentY][currentX] == '~' and (currentY, currentX) not in exploredWaterTiles:
-        exploredWaterTiles.append((currentY, currentX))
+    print(Char.get_orientation)
+    if worldMap[Char.Y_pos][Char.X_pos] == '~' and (Char.Y_pos, Char.X_pos) not in exploredWaterTiles:
+        exploredWaterTiles.append((Char.Y_pos, Char.X_pos))
     if view[1][2] == '$':                           # if treasure right in front of us, cancel previous plans
         while actionQueue.isEmpty() == False:
             actionQueue.dequeue()
-        hasTreasure = True
+        Char.Char.hasTreasure = True
         thingCoords['T'] = []
-        moveForward()
+        Char.move_forward()
         return 'f'
     checkForThings(view)
-    pickUpStuff(currentY, currentX)
+    pickUpStuff(Char.Y_pos, Char.X_pos)
     if actionQueue.isEmpty() == False:              # if stack has something in it
         act = which_action()
         return act
     for e in thingCoords:                           # can we get to treasure, axe, key or stones
         if e in ['$', 'a', 'k', 'o'] and onLand == True:
             if thingCoords[e]:
-                path = greedySearch((currentY, currentX), worldMap,(thingCoords[e][0][0], thingCoords[e][0][1]))
+                path = greedySearch((Char.Y_pos, Char.X_pos), worldMap,(thingCoords[e][0][0], thingCoords[e][0][1]))
                 if len(path) > 1:
                     pathToActions_worldMap(path)     
     if actionQueue.isEmpty() == False:              # if stack has something in it
         act = which_action()
         return act
-    if hasTreasure == True:                         # have treasure, and there's a path back
-        pathBack = greedySearch((currentY, currentX), worldMap,(80, 80))
+    if Char.hasTreasure == True:                         # have treasure, and there's a path back
+        pathBack = greedySearch((Char.Y_pos, Char.X_pos), worldMap,(80, 80))
         if len(pathBack) > 1:
             pathToActions_worldMap(pathBack)
             act = which_action()
             return act
     if onLand == True:
         a = adjacentSquaresHeuristic()                  # go to square near unexplored areas
-        nonAdjacentUnexploredTilePath = nonAdjacentTileToExplore(a, currentY, currentX)
+        nonAdjacentUnexploredTilePath = nonAdjacentTileToExplore(a, Char.Y_pos, Char.X_pos)
         if nonAdjacentUnexploredTilePath:
             if len(nonAdjacentUnexploredTilePath) > 1:
                 pathToActions_worldMap(nonAdjacentUnexploredTilePath)
@@ -418,26 +380,26 @@ def get_action(view):
         act = AdjacentTileToExplore(a)                  # go to adjacent square near most unexplored areas
         if act:
             return act
-        if hasAxe == True and hasRaft == False and thingCoords['T']:         # if we can chop down a tree, do that
+        if Char.hasAxe == True and Char.hasRaft == False and thingCoords['T']:         # if we can chop down a tree, do that
             for e in thingCoords['T']:
-                path = greedySearch((currentY, currentX), worldMap,(thingCoords['T'][0][0], thingCoords['T'][0][1]))
+                path = greedySearch((Char.Y_pos, Char.X_pos), worldMap,(thingCoords['T'][0][0], thingCoords['T'][0][1]))
                 if len(path) > 1:
                     thingCoords['T'].remove(path[-1])
                     pathToActions_worldMap(path)
                     chopTree()
-                    hasRaft = True
+                    Char.hasRaft = True
                     act = which_action()
                     return act
-    if hasRaft == True and onLand == True:                         # go explore water   
+    if Char.hasRaft == True and onLand == True:                         # go explore water   
         waterTiles = [(i,j) for j in range(160) for i in range(160) if worldMap[i][j] == '~']
         if waterTiles:
             for e in waterTiles:
-                path = greedySearch((currentY, currentX), worldMap,(waterTiles[0][0], waterTiles[0][1]), ['*', 'T', '?', '-', '.'])
+                path = greedySearch((Char.Y_pos, Char.X_pos), worldMap,(waterTiles[0][0], waterTiles[0][1]), ['*', 'T', '?', '-', '.'])
                 if len(path) > 1:
                     waterTiles.pop(0)
                     pathToActions_worldMap(path)
                     onLand = False
-                    hasRaft = False
+                    Char.hasRaft = False
                     act = which_action()
                     return act
     if onLand == False:
@@ -447,13 +409,13 @@ def get_action(view):
             if view[i][j] == '~' and (Coords[0] not in waterTiles):
                 waterTiles.append(Coords[0])
         if waterTiles:
-            waterTilesPath = greedySearch((currentY, currentX), worldMap,(waterTiles[0][0], waterTiles[0][1]), [' ', '*', 'T', '?', '-', '.'])
+            waterTilesPath = greedySearch((Char.Y_pos, Char.X_pos), worldMap,(waterTiles[0][0], waterTiles[0][1]), [' ', '*', 'T', '?', '-', '.'])
             if len(waterTilesPath) > 1:
                 waterTiles.pop(0)
                 pathToActions_worldMap(waterTilesPath)
                 act = which_action()
                 return act
-    rotate('l')
+    Char.rotate('l')
     return 'l' 
 
 # helper function to print the grid
@@ -506,7 +468,8 @@ if __name__ == '__main__':
                 j=0
                 i=(i+1)%5
         if j==0 and i==0:
-            initialiseWorldMap(view)
+            #initialiseWorldMap(view)
+            worldMap[80][80] = 'S'
             updateWorldMap(view)
             printWorldMap()
             print_grid(view) # COMMENT THIS OUT ON SUBMISSION
