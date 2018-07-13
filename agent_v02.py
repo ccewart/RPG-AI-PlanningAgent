@@ -9,7 +9,7 @@
 # with slight modifications by Alan Blair
 
 from agent_classes import Coords, Compass, Character
-from collections import namedtuple
+from environment import *
 from queue import Queue
 from greedyBFS import *
 import sys
@@ -23,8 +23,6 @@ view = [['' for _ in range(5)] for _ in range(5)]
 
 # declaring a known map of the world to agent
 worldMap = [['?' for _ in range(160)] for _ in range(160)]
-Coord = namedTuple('Coord', 'coords 
-heuristicMap = 
 
 # declaring navigation tools
 waterTiles = []
