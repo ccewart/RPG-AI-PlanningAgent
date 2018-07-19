@@ -5,7 +5,7 @@
 # designed for python 3.6
 # typical initiation would be (file in working directory, port = 31415)
 #        python3 agent.py -p 31415
-# created by Leo Hoare
+# socket code created by Leo Hoare
 # with slight modifications by Alan Blair
 
 from agent_classes import Coords, Compass, Character
