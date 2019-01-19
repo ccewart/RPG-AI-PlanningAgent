@@ -1,4 +1,14 @@
-class Environment:
+class Player:
+    def __init__(self, env):
+        """set up the agent"""
+        self.env = env
+
+    def go(self, n):
+        """acts for n time steps"""
+        raise NotImplementedError
+        
+
+class World_Model(Player):
     def __init__(self, initial_state):
         """initialise environment"""
         self.initial_state = initial_state
@@ -16,24 +26,3 @@ class Environment:
     def percept(self, state):
         return self.state
 
-    
-class Grid_square(Environment):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.discovered = False
-        self.land = False
-        self.water = False
-        self.wall = False
-        self.tree = False
-        self.treasure = False
-        self.axe = False
-        self.key = False
-        self.stone = False
-        self.door = False
-        self.placedStone = False
-
-
-env = Environment(5)
-print(env.worldMap[7][0].x)
-print(env.worldMap[7][0].y)

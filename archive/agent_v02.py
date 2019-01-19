@@ -335,7 +335,7 @@ def get_action(view):
     global onLand
     global waterTiles
     global exploredWaterTiles
-    if Char.steps_taken > 50:
+    if Char.steps_taken > 10:
         sys.exit(1)
     print(Char.get_orientation)
     if worldMap[Char.Y_pos][Char.X_pos] == '~' and (Char.Y_pos, Char.X_pos) not in exploredWaterTiles:

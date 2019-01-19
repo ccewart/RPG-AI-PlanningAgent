@@ -1,60 +1,89 @@
-class Coords():
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+#!/usr/bin/python3
+# ^^ note the python directive on the first line
+# COMP 9414 agent initiation file 
+# requires the host is running before the agent
+# designed for python 3.6
+# typical initiation would be (file in working directory, port = 31415)
+#        python3 agent.py -p 31415
+# created by Leo Hoare
+# with slight modifications by Alan Blair
 
-    @property
-    def get(self):
-        return (self.x, self.y)
+import sys
+import socket
 
-class Compass():
-    def __init__(self):
-        self.orient_index = 0
-        self.cardinals = ['N', 'E', 'S', 'W']
+# declaring visible grid to agent
+view = [['' for _ in range(5)] for _ in range(5)]
 
-    def rotate(self, direction):
-        self.orient_index = (self.orient_index - 1) % 4 if direction == 'l' else self.orient_index
-        self.orient_index = (self.orient_index + 1) % 4 if direction == 'r' else self.orient_index
+
+
+def get_action(view):
+    ''' function to take get action from AI or user '''
+
+    # input loop to take input from user (only returns if this is valid)
+    while 1:
+        inp = input("Enter Action(s): ")
+        inp.strip()
+        final_string = ''
+        for char in inp:
+            if char in ['f','l','r','c','u','b','F','L','R','C','U','B']:
+                final_string += char
+                if final_string:
+                     return final_string[0]
     
-    @property
-    def get(self):
-        return self.cardinals[self.orient_index]
 
-class Character():
-    def __init__(self, x, y):
-        self.coordinates = Coords(x, y)
-        self.curr_dir = Compass()
-        self.steps_taken = 0
-        self.hasTreasure = False
-        self.hasAxe = False
-        self.hasKey = False
-        self.hasRaft = False
-        nbOfSteppingStones = 0
+def print_grid(view):
+    ''' helper function to print the grid '''
+    print('+-----+')
+    for ln in view:
+        print("|"+str(ln[0])+str(ln[1])+str(ln[2])+str(ln[3])+str(ln[4])+"|")
+    print('+-----+')
 
-    def move_forward(self):
-        self.coordinates.y += 1 if self.curr_dir.get == 'N' else 0
-        self.coordinates.x += 1 if self.curr_dir.get == 'E' else 0
-        self.coordinates.y -= 1 if self.curr_dir.get == 'S' else 0
-        self.coordinates.x -= 1 if self.curr_dir.get == 'W' else 0
-        self.steps_taken += 1
-        
-    def rotate(self, direction):
-        self.curr_dir.rotate(direction)
-        self.steps_taken += 1
-    
-    @property
-    def get_orientation(self):
-        return self.curr_dir.get
-    
-    @property
-    def get_position(self):
-        return self.coordinates.get
 
-    @property
-    def X_pos(self):
-        return self.coordinates.x
+if __name__ == "__main__":
 
-    @property
-    def Y_pos(self):
-        return self.coordinates.y
+    # checks for correct amount of arguments 
+    if len(sys.argv) != 3:
+        print("Usage Python3 "+sys.argv[0]+" -p port \n")
+        sys.exit(1)
 
+    port = int(sys.argv[2])
+
+    # checking for valid port number
+    if not 1025 <= port <= 65535:
+        print('Incorrect port number')
+        sys.exit()
+
+    # creates TCP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+         # tries to connect to host
+         # requires host is running before agent
+         sock.connect(('localhost',port))
+    except (ConnectionRefusedError):
+         print('Connection refused, check host is running')
+         sys.exit()
+
+    # navigates through grid with input stream of data
+    i=0
+    j=0
+    while 1:
+        data=sock.recv(100)
+        if not data:
+            exit()
+        for ch in data:
+            if (i==2 and j==2):
+                view[i][j] = '^'
+                view[i][j+1] = chr(ch)
+                j+=1 
+            else:
+                view[i][j] = chr(ch)
+            j+=1
+            if j>4:
+                j=0
+                i=(i+1)%5
+        if j==0 and i==0:
+            print_grid(view) # COMMENT THIS OUT ON SUBMISSION
+            action = get_action(view) # gets new actions
+            sock.send(action.encode('utf-8'))
+
+    sock.close()
